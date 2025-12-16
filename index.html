@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>BEWOOFED — Παραγγελία</title>
+  <style>
+    body{font-family:system-ui,Arial;max-width:820px;margin:2rem auto;padding:1rem}
+    h2{margin:0 0 1rem 0;display:flex;align-items:center;gap:10px}
+    .logo{height:46px;width:auto;border-radius:10px;border:1px solid #eee;background:#fafafa}
+    .card{border:1px solid #e2e2e2;border-radius:14px;padding:14px;background:#fff}
+    .sep{height:18px}
+    .section-title{margin:0 0 10px 0;font-size:18px}
+    label{display:block;margin:10px 0 6px;font-weight:700}
+    input[type="text"], input[type="number"]{
+      padding:10px;font-size:16px;border:1px solid #ccc;border-radius:10px;width:100%;box-sizing:border-box
+    }
+    .hint{color:#555;font-size:13px;margin-top:6px}
+    .line{
+      display:flex; align-items:center; gap:12px;
+      padding:10px 0; border-bottom:1px dashed #eee;
+    }
+    .line:last-child{border-bottom:none}
+    .pic{
+      width:64px; height:64px; object-fit:cover;
+      border:1px solid #ddd; border-radius:10px; background:#fafafa;
+      flex:0 0 auto;
+    }
+    .name{flex:1; font-weight:650}
+    .qty{width:110px; flex:0 0 auto}
+    .checks{display:flex; flex-direction:column; gap:10px; margin-top:8px}
+    .check-row{display:flex; align-items:center; gap:10px}
+    .check-row input{width:20px;height:20px}
+    button{
+      margin-top:14px;padding:12px 16px;font-size:18px;border:0;border-radius:12px;cursor:pointer;
+      background:#111;color:#fff
+    }
+    button:disabled{opacity:.6;cursor:not-allowed}
+    .ok{margin-top:14px;padding:12px;border-radius:12px;background:#e9ffe9}
+    .bad{margin-top:14px;padding:12px;border-radius:12px;background:#ffe9e9}
+  </style>
+</head>
+
+<body>
+  <h2>
+    <img class="logo" id="logo" alt="BEWOOFED logo">
+    BEWOOFED — Παραγγελία
+  </h2>
+
+  <div class="card">
+    <label for="afm">ΑΦΜ (9 ψηφία)</label>
+    <input id="afm" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="π.χ. 455676432" />
+    <div class="hint">Γράψε το ΑΦΜ και συμπλήρωσε ποσότητες / επιλογές.</div>
+
+    <div class="sep"></div>
+
+    <h3 class="section-title">Τα προϊόντα μας</h3>
+    <div id="productos"></div>
+
+    <div class="sep"></div>
+
+    <h3 class="section-title">Τρόποι Αποστολής</h3>
+    <div class="checks">
+      <div class="check-row">
+        <input type="checkbox" id="ship_boxnow">
+        <label for="ship_boxnow" style="margin:0;font-weight:650;">BOX NOW</label>
+      </div>
+      <div class="check-row">
+        <input type="checkbox" id="ship_acs">
+        <label for="ship_acs" style="margin:0;font-weight:650;">ACS</label>
+      </div>
+      <div class="check-row">
+        <input type="checkbox" id="ship_metaforiki">
+        <label for="ship_metaforiki" style="margin:0;font-weight:650;">Μεταφορική</label>
+      </div>
+    </div>
+
+    <div class="sep"></div>
+
+    <h3 class="section-title">Τα εξτραδακια μας</h3>
+    <div id="extras"></div>
+
+    <button id="btn">Αποστολή Παραγγελίας</button>
+    <div id="result"></div>
+  </div>
+
+  <script>
+    // ✅ Pega aquí tu TOKEN y CHAT_ID
+    const TOKEN = "7993916106:AAEN_n8R8qh2DIn2gUKZBH3CkNj1blIKArk";
+    const CHAT_ID = "1446479004";
+
+    // fallback de formatos (incluye mayúsculas)
+    const IMG_EXTS = ["png","jpg","jpeg","webp","JPG","JPEG","PNG","WEBP"];
+
+    function setImgWithFallback(imgEl, basePathNoExt) {
+      let i = 0;
+      const tryNext = () => {
+        if (i >= IMG_EXTS.length) return;
+        imgEl.src = `${basePathNoExt}.${IMG_EXTS[i++]}`;
+      };
+      imgEl.onerror = () => tryNext();
+      tryNext();
+    }
+
+    async function buscarPorAFM(afm) {
+      const res = await fetch("tiendas.json", { cache: "no-store" });
+      const data = await res.json();
+      return data.find(x => String(x.afm).trim() === String(afm).trim()) || null;
+    }
+
+    // Productos (cantidad)
+    const PRODUCTOS = [
+      { id:"p1", imgBase:"img/p1", name:"Μαντιλάκια σκύλων 80τμχ Αλόη βέρα" },
+      { id:"p2", imgBase:"img/p2", name:"Κομποστοποιήσιμα σακουλάκια 120τμχ Bart" },
+      { id:"p3", imgBase:"img/p3", name:"Μπαντάνα σκύλου Small Bewoofed x Wildbarks" },
+      { id:"p4", imgBase:"img/p4", name:"Μπαντάνα σκύλου Medium Bewoofed x Wildbarks" },
+      { id:"p5", imgBase:"img/p5", name:"Μπαντάνα σκύλου Large Bewoofed x Wildbarks" },
+      { id:"p6", imgBase:"img/p6", name:"Θήκη για ρολά υφασμάτινη Green Bewoofed x Wildbarks" },
+      { id:"p7", imgBase:"img/p7", name:"Θήκη για ρολά υφασμάτινη Figo Bewoofed x Wildbarks" }
+    ];
+
+    // Extras (checkbox) — bandera (p8) aquí al final
+    const EXTRAS = [
+      { id:"ex_stickers", imgBase:"img/ex_stickers", name:"Branded stickers" },
+      { id:"ex_brochure", imgBase:"img/ex_brochure", name:"Brochure" },
+      { id:"ex_poster_wipes", imgBase:"img/ex_poster_wipes", name:"Poster Don't forget your wipes" },
+      { id:"ex_floor_stand", imgBase:"img/ex_floor_stand", name:"Επιδαπέδιο Stant all products" },
+      { id:"ex_table_wipes", imgBase:"img/ex_table_wipes", name:"Επιτραπέζιο Stant μαντιλάκια" },
+      { id:"ex_table_bags", imgBase:"img/ex_table_bags", name:"Επιτραπέζιο Stant σακουλάκια" },
+      { id:"ex_flag", imgBase:"img/p8", name:"Σημαία (Bandera) — Bewoofed" }
+    ];
+
+    function renderProductos() {
+      const root = document.getElementById("productos");
+      root.innerHTML = "";
+      for (const p of PRODUCTOS) {
+        const row = document.createElement("div");
+        row.className = "line";
+
+        const img = document.createElement("img");
+        img.className = "pic";
+        img.alt = p.name;
+        setImgWithFallback(img, p.imgBase);
+
+        const name = document.createElement("div");
+        name.className = "name";
+        name.textContent = p.name;
+
+        const qty = document.createElement("input");
+        qty.className = "qty";
+        qty.type = "number";
+        qty.min = "0";
+        qty.value = "0";
+        qty.id = p.id;
+        qty.placeholder = "Qty";
+
+        row.appendChild(img);
+        row.appendChild(name);
+        row.appendChild(qty);
+        root.appendChild(row);
+      }
+    }
+
+    function renderExtras() {
+      const root = document.getElementById("extras");
+      root.innerHTML = "";
+      for (const ex of EXTRAS) {
+        const row = document.createElement("div");
+        row.className = "line";
+
+        const img = document.createElement("img");
+        img.className = "pic";
+        img.alt = ex.name;
+        setImgWithFallback(img, ex.imgBase);
+
+        const name = document.createElement("div");
+        name.className = "name";
+        name.textContent = ex.name;
+
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.id = ex.id;
+
+        row.appendChild(img);
+        row.appendChild(name);
+        row.appendChild(cb);
+        root.appendChild(row);
+      }
+    }
+
+    function getShippingSelected() {
+      const arr = [];
+      if (document.getElementById("ship_boxnow").checked) arr.push("BOX NOW");
+      if (document.getElementById("ship_acs").checked) arr.push("ACS");
+      if (document.getElementById("ship_metaforiki").checked) arr.push("Μεταφορική");
+      return arr;
+    }
+
+    function getExtrasSelected() {
+      const arr = [];
+      for (const ex of EXTRAS) {
+        if (document.getElementById(ex.id).checked) arr.push(ex.name);
+      }
+      return arr;
+    }
+
+    function resetForm() {
+      document.getElementById("afm").value = "";
+      for (const p of PRODUCTOS) document.getElementById(p.id).value = 0;
+
+      document.getElementById("ship_boxnow").checked = false;
+      document.getElementById("ship_acs").checked = false;
+      document.getElementById("ship_metaforiki").checked = false;
+
+      for (const ex of EXTRAS) document.getElementById(ex.id).checked = false;
+    }
+
+    // ✅ FIX: ahora lee respuesta de Telegram y muestra error real
+    async function sendTelegram(texto) {
+      const res = await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: CHAT_ID, text: texto })
+      });
+
+      let data;
+      try {
+        data = await res.json();
+      } catch (e) {
+        throw new Error("Respuesta inválida de Telegram");
+      }
+
+      if (!res.ok || !data.ok) {
+        const msg = (data && data.description) ? data.description : `HTTP ${res.status}`;
+        throw new Error(msg);
+      }
+
+      return true;
+    }
+
+    // init
+    setImgWithFallback(document.getElementById("logo"), "img/logo");
+    renderProductos();
+    renderExtras();
+
+    document.getElementById("btn").addEventListener("click", async () => {
+      const afm = document.getElementById("afm").value.trim();
+      const result = document.getElementById("result");
+      result.innerHTML = "";
+
+      // ✅ AFM real: 9 dígitos
+      if (!/^\d{9}$/.test(afm)) {
+        result.innerHTML = `<div class="bad">Παρακαλώ γράψτε έγκυρο ΑΦΜ (9 ψηφία).</div>`;
+        return;
+      }
+
+      const items = [];
+      for (const p of PRODUCTOS) {
+        const qty = Number(document.getElementById(p.id).value || 0);
+        if (qty > 0) items.push({ name: p.name, qty });
+      }
+      if (items.length === 0) {
+        result.innerHTML = `<div class="bad">Παρακαλώ συμπληρώστε ποσότητα σε τουλάχιστον 1 προϊόν.</div>`;
+        return;
+      }
+
+      const shipping = getShippingSelected();
+      if (shipping.length === 0) {
+        result.innerHTML = `<div class="bad">Παρακαλώ επιλέξτε τουλάχιστον 1 τρόπο αποστολής.</div>`;
+        return;
+      }
+
+      const extras = getExtrasSelected();
+
+      const reg = await buscarPorAFM(afm);
+      const epwnymia = reg?.epwnymia?.trim() ? reg.epwnymia : "ΑΦΜ no registrado en base de datos.";
+      const onoma = reg?.onoma?.trim() ? reg.onoma : "—";
+
+      let texto = `📦 Νέα Παραγγελία\n`;
+      texto += `🏪 Κατάστημα: ${epwnymia}\n`;
+      texto += `👤 Όνομα: ${onoma}\n`;
+      texto += `🧾 ΑΦΜ: ${afm}\n\n`;
+
+      texto += `🛍️ Προϊόντα:\n`;
+      for (const it of items) texto += `• ${it.name}: ${it.qty}\n`;
+
+      texto += `\n🚚 Τρόποι Αποστολής:\n`;
+      for (const s of shipping) texto += `• ${s}\n`;
+
+      if (extras.length) {
+        texto += `\n🎁 Τα εξτραδακια μας:\n`;
+        for (const ex of extras) texto += `• ${ex}\n`;
+      }
+
+      if (TOKEN === "TU_TOKEN" || CHAT_ID === "TU_CHAT_ID") {
+        result.innerHTML = `<div class="bad">Βάλε πρώτα το TOKEN και το CHAT_ID μέσα στο index.html.</div>`;
+        return;
+      }
+
+      // ✅ FIX: try/catch para ver error real en pantalla
+      try {
+        await sendTelegram(texto);
+      } catch (err) {
+        result.innerHTML = `<div class="bad">Telegram error: ${String(err.message || err)}</div>`;
+        return;
+      }
+
+      alert("Η παραγγελία στάλθηκε επιτυχώς στο Telegram!");
+      resetForm();
+      result.innerHTML = "";
+    });
+  </script>
+</body>
+</html>
