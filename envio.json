@@ -1,0 +1,29 @@
+{
+  "vat_rate": 0.24,
+  "methods": [
+    {
+      "id": "BOX_NOW",
+      "label": "BOX NOW",
+      "type": "brackets",
+      "max_weight_kg": 16,
+      "brackets": [
+        { "max_kg": 8, "price": 1.7 },
+        { "max_kg": 16, "price": 2.7 }
+      ]
+    },
+    {
+      "id": "ACS",
+      "label": "ACS",
+      "type": "base_plus_per_kg_over",
+      "base_max_kg": 2,
+      "base_price": 3.5,
+      "per_kg_price": 0.7
+    },
+    {
+      "id": "OWN",
+      "label": "Έχω δική μου μεταφορική",
+      "type": "fixed",
+      "price": 0
+    }
+  ]
+}
