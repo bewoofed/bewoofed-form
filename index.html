@@ -14,7 +14,7 @@
       --ok:#e9ffe9;
       --bad:#ffe9e9;
     }
-    body{font-family:system-ui,Arial;max-width:920px;margin:1.2rem auto;padding:1rem;padding-bottom:170px;background:#fff}
+    body{font-family:system-ui,Arial;max-width:920px;margin:1.2rem auto;padding:1rem;padding-bottom:200px;background:#fff}
     h2{margin:0 0 1rem 0;display:flex;align-items:center;gap:10px}
     .logo{height:46px;width:auto;border-radius:10px;border:1px solid #eee;background:#fafafa}
     .card{border:1px solid var(--border);border-radius:16px;padding:14px;background:var(--bg)}
@@ -35,7 +35,6 @@
     }
     .hint{color:var(--muted);font-size:13px;margin-top:6px}
 
-    /* LISTAS */
     .list{display:flex;flex-direction:column;gap:10px}
     .item{
       display:grid;
@@ -56,7 +55,6 @@
     .pill{background:var(--chip);padding:4px 8px;border-radius:999px}
     .price{font-weight:800;color:#111}
 
-    /* Stepper compacto */
     .qtywrap{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
     .stepper{display:flex;align-items:center;border:1px solid #d6d6d6;border-radius:12px;overflow:hidden}
     .stepper button{
@@ -68,7 +66,6 @@
     .lineTotal{font-size:12px;color:var(--muted)}
     .lineTotal b{color:#111}
 
-    /* checkboxes */
     .checks{display:flex;flex-direction:column;gap:10px}
     .check-row{display:flex;align-items:center;gap:10px}
     .check-row input{width:20px;height:20px}
@@ -78,10 +75,10 @@
       background:#111;color:#fff;width:100%
     }
     button#btn:disabled{opacity:.6;cursor:not-allowed}
-    .ok{margin-top:12px;padding:12px;border-radius:12px;background:var(--ok)}
+
+    .ok{margin-top:12px;padding:14px;border-radius:14px;background:var(--ok);text-align:center;line-height:1.4}
     .bad{margin-top:12px;padding:12px;border-radius:12px;background:var(--bad)}
 
-    /* barra fija con resumen */
     .totalbar{
       position:fixed;left:0;right:0;bottom:0;
       background:#fff;border-top:1px solid var(--border);
@@ -109,11 +106,11 @@
       text-align:right;
       font-size:12px;
       color:var(--muted);
-      line-height:1.2;
+      line-height:1.35;
     }
 
     @media (max-width:520px){
-      body{padding:12px;padding-bottom:180px}
+      body{padding:12px;padding-bottom:210px}
       .item{grid-template-columns: 56px 1fr auto}
       .pic{width:56px;height:56px}
       .stepper button{width:34px}
@@ -129,7 +126,6 @@
   </h2>
 
   <div class="card">
-    <!-- (1) AFM: sin nota “9 dígitos” + placeholder 123456789 -->
     <label for="afm">ΑΦΜ</label>
     <input id="afm" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="π.χ. 123456789" />
     <div class="hint">Συμπληρώστε ΑΦΜ και επιλέξτε ποσότητες.</div>
@@ -155,6 +151,7 @@
         <input type="checkbox" id="ship_metaforiki">
         <label for="ship_metaforiki" style="margin:0;font-weight:650;">Έχω δική μου μεταφορική</label>
       </div>
+      <div class="hint" id="shipHint">Το κόστος αποστολής υπολογίζεται αυτόματα βάσει βάρους.</div>
     </div>
 
     <div class="sep"></div>
@@ -171,23 +168,25 @@
     <div id="result"></div>
   </div>
 
-  <!-- Barra fija resumen con ΦΠΑ -->
+  <!-- Barra fija resumen con ΦΠΑ + envío -->
   <div class="totalbar">
     <div class="totalinner">
       <div class="sumgrid">
         <div class="k">Καθαρή αξία</div><div class="v"><span id="subTotal">0,00</span> €</div>
+        <div class="k">Κόστος αποστολής</div><div class="v"><span id="shipCost">0,00</span> €</div>
         <div class="k">ΦΠΑ 24%</div><div class="v"><span id="vatValue">0,00</span> €</div>
         <div class="k">Σύνολο</div><div class="v big"><span id="grandTotal">0,00</span> €</div>
       </div>
       <div class="miniRight">
-        <div>Προϊόντα:</div>
-        <div><b><span id="itemsCount">0</span></b> τεμ.</div>
+        <div>Προϊόντα: <b><span id="itemsCount">0</span></b> τεμ.</div>
+        <div>Βάρος: <b><span id="totalWeight">0,00</span></b> kg</div>
+        <div>Αποστολή: <b><span id="shipMethodLabel">—</span></b></div>
       </div>
     </div>
   </div>
 
 <script>
-  // ✅ Pon aquí tu TOKEN y el chat_id del GRUPO
+  // ✅ Tu TOKEN y chat_id del GRUPO
   const TOKEN = "7993916106:AAEN_n8R8qh2DIn2gUKZBH3CkNj1blIKArk";
   const CHAT_ID = "1446479004"; // ⚠️ Debe ser el del grupo (normalmente -100xxxxxxxxxx)
 
@@ -195,7 +194,6 @@
 
   // fallback de formatos (incluye mayúsculas)
   const IMG_EXTS = ["png","jpg","jpeg","webp","JPG","JPEG","PNG","WEBP"];
-
   function setImgWithFallback(imgEl, basePathNoExt) {
     let i = 0;
     const tryNext = () => {
@@ -217,60 +215,37 @@
     return x.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
+  function clampInt(v){ return Math.max(0, parseInt(v || "0", 10) || 0); }
+
   function getQty(id){
-    const el = document.getElementById(id);
-    return Math.max(0, parseInt(el.value || "0", 10) || 0);
+    return clampInt(document.getElementById(id).value);
   }
 
   function setQty(id, val){
-    const el = document.getElementById(id);
-    el.value = String(Math.max(0, val));
+    document.getElementById(id).value = String(Math.max(0, val));
     updateTotals();
   }
 
-  // ✅ Productos y precios (SIN ΦΠΑ)
+  // ✅ Productos: precio SIN ΦΠΑ + peso en kg por unidad
   const PRODUCTOS = [
-    { id:"p1", imgBase:"img/p1", name:"Μαντιλάκια σκύλων 80τμχ Αλόη βέρα", price: 3.19 },
-    { id:"p2", imgBase:"img/p2", name:"Κομποστοποιήσιμα σακουλάκια 120τμχ Bart", price: 4.84 },
+    { id:"p1", imgBase:"img/p1", name:"Μαντιλάκια σκύλων 80τμχ Αλόη βέρα", price: 3.19, weightKg: 0.4 },
+    { id:"p2", imgBase:"img/p2", name:"Κομποστοποιήσιμα σακουλάκια 120τμχ Bart", price: 4.84, weightKg: 0.3 },
 
-    { id:"p3", imgBase:"img/p3", name:"Bandana Small Bewoofed x Wildbarks",  price: 6.00 },
-    { id:"p4", imgBase:"img/p4", name:"Bandana Medium Bewoofed x Wildbarks", price: 6.50 },
-    { id:"p5", imgBase:"img/p5", name:"Bandana Large Bewoofed x Wildbarks",  price: 7.00 },
+    { id:"p3", imgBase:"img/p3", name:"Bandana Small Bewoofed x Wildbarks",  price: 6.00, weightKg: 0.015 },
+    { id:"p4", imgBase:"img/p4", name:"Bandana Medium Bewoofed x Wildbarks", price: 6.50, weightKg: 0.015 },
+    { id:"p5", imgBase:"img/p5", name:"Bandana Large Bewoofed x Wildbarks",  price: 7.00, weightKg: 0.015 },
 
-    { id:"p6", imgBase:"img/p6", name:"Θήκη για ρολά υφασμάτινη Green Bewoofed x Wildbarks", price: 5.50 },
-    { id:"p7", imgBase:"img/p7", name:"Θήκη για ρολά υφασμάτινη Figo Bewoofed x Wildbarks",  price: 5.50 }
+    { id:"p6", imgBase:"img/p6", name:"Θήκη για ρολά υφασμάτινη Green Bewoofed x Wildbarks", price: 5.50, weightKg: 0.02 },
+    { id:"p7", imgBase:"img/p7", name:"Θήκη για ρολά υφασμάτινη Figo Bewoofed x Wildbarks",  price: 5.50, weightKg: 0.02 }
   ];
 
-  // ✅ EXTRAS (3) Quitados: floor stand / table wipes / table bags
+  // ✅ Extras (sin los stands)
   const EXTRAS = [
     { id:"ex_stickers", imgBase:"img/ex_stickers", name:"Branded stickers" },
     { id:"ex_brochure", imgBase:"img/ex_brochure", name:"Brochure" },
     { id:"ex_poster_wipes", imgBase:"img/ex_poster_wipes", name:"Poster Don't forget your wipes" },
     { id:"ex_flag", imgBase:"img/p8", name:"Σημαία (Bandera) — Bewoofed" }
   ];
-
-  function updateTotals(){
-    let subtotal = 0;
-    let count = 0;
-
-    for (const p of PRODUCTOS){
-      const q = getQty(p.id);
-      count += q;
-      const line = q * (Number(p.price)||0);
-      subtotal += line;
-
-      const lt = document.getElementById(`lt_${p.id}`);
-      if (lt) lt.innerHTML = `Σύνολο: <b>${eur(line)}€</b>`;
-    }
-
-    const vat = subtotal * VAT_RATE;
-    const total = subtotal + vat;
-
-    document.getElementById("subTotal").textContent = eur(subtotal);
-    document.getElementById("vatValue").textContent = eur(vat);
-    document.getElementById("grandTotal").textContent = eur(total);
-    document.getElementById("itemsCount").textContent = String(count);
-  }
 
   function renderProductos() {
     const root = document.getElementById("productos");
@@ -294,7 +269,9 @@
 
       const sub = document.createElement("div");
       sub.className = "subrow";
-      sub.innerHTML = `<span class="pill">Τιμή (χωρίς ΦΠΑ): <span class="price">${eur(p.price)}€</span></span>`;
+      sub.innerHTML =
+        `<span class="pill">Τιμή: <span class="price">${eur(p.price)}€</span> (χωρίς ΦΠΑ)</span>` +
+        `<span class="pill">Βάρος: <b>${eur(p.weightKg)}</b> kg</span>`;
 
       meta.appendChild(name);
       meta.appendChild(sub);
@@ -345,8 +322,6 @@
 
       root.appendChild(row);
     }
-
-    updateTotals();
   }
 
   function renderExtras() {
@@ -391,19 +366,113 @@
   }
 
   function getShippingSelected() {
-    const arr = [];
-    if (document.getElementById("ship_boxnow").checked) arr.push("BOX NOW");
-    if (document.getElementById("ship_acs").checked) arr.push("ACS");
-    if (document.getElementById("ship_metaforiki").checked) arr.push("Έχω δική μου μεταφορική");
-    return arr;
+    const box = document.getElementById("ship_boxnow").checked;
+    const acs = document.getElementById("ship_acs").checked;
+    const own = document.getElementById("ship_metaforiki").checked;
+
+    // Permitir solo 1 (para cálculo claro)
+    const selected = [];
+    if (box) selected.push("BOX NOW");
+    if (acs) selected.push("ACS");
+    if (own) selected.push("OWN");
+
+    return selected;
+  }
+
+  function enforceSingleShipping(changedId){
+    const ids = ["ship_boxnow","ship_acs","ship_metaforiki"];
+    for (const id of ids){
+      if (id !== changedId) document.getElementById(id).checked = false;
+    }
+    updateTotals();
   }
 
   function getExtrasSelected() {
     const arr = [];
-    for (const ex of EXTRAS) {
-      if (document.getElementById(ex.id).checked) arr.push(ex.name);
-    }
+    for (const ex of EXTRAS) if (document.getElementById(ex.id).checked) arr.push(ex.name);
     return arr;
+  }
+
+  function calcTotals(){
+    let subtotal = 0;
+    let count = 0;
+    let weight = 0;
+
+    const items = [];
+
+    for (const p of PRODUCTOS){
+      const q = getQty(p.id);
+      count += q;
+      const line = q * p.price;
+      subtotal += line;
+
+      const w = q * p.weightKg;
+      weight += w;
+
+      const lt = document.getElementById(`lt_${p.id}`);
+      if (lt) lt.innerHTML = `Σύνολο: <b>${eur(line)}€</b>`;
+
+      if (q > 0) items.push({name:p.name, qty:q, price:p.price, line, weightKg:p.weightKg});
+    }
+
+    const shipSel = getShippingSelected();
+    const shipMethod = shipSel[0] || null;
+
+    const ship = calcShippingCost(shipMethod, weight);
+
+    const vat = (subtotal + ship.cost) * VAT_RATE;
+    const total = subtotal + ship.cost + vat;
+
+    return { subtotal, count, weight, items, shipMethod, shipCost: ship.cost, shipError: ship.error, vat, total };
+  }
+
+  function calcShippingCost(method, weightKg){
+    // precios SIN ΦΠΑ
+    if (!method) return { cost: 0, error: null };
+
+    if (method === "OWN") return { cost: 0, error: null };
+
+    if (weightKg <= 0) return { cost: 0, error: null };
+
+    if (method === "BOX NOW"){
+      // 0–8kg => 1.70, 8–16kg => 2.70
+      if (weightKg <= 8) return { cost: 1.70, error: null };
+      if (weightKg <= 16) return { cost: 2.70, error: null };
+      return { cost: 0, error: "Για βάρος άνω των 16kg, επικοινωνήστε μαζί μας." };
+    }
+
+    if (method === "ACS"){
+      // 0–2kg => 3.50, luego cada kg adicional +0.70 (redondeo hacia arriba)
+      if (weightKg <= 2) return { cost: 3.50, error: null };
+      const extraKg = Math.ceil(weightKg - 2);
+      return { cost: 3.50 + extraKg * 0.70, error: null };
+    }
+
+    return { cost: 0, error: null };
+  }
+
+  function updateTotals(){
+    const t = calcTotals();
+
+    document.getElementById("subTotal").textContent = eur(t.subtotal);
+    document.getElementById("shipCost").textContent = eur(t.shipCost);
+    document.getElementById("vatValue").textContent = eur(t.vat);
+    document.getElementById("grandTotal").textContent = eur(t.total);
+    document.getElementById("itemsCount").textContent = String(t.count);
+    document.getElementById("totalWeight").textContent = eur(t.weight);
+    document.getElementById("shipMethodLabel").textContent =
+      (t.shipMethod === "BOX NOW") ? "BOX NOW" :
+      (t.shipMethod === "ACS") ? "ACS" :
+      (t.shipMethod === "OWN") ? "Δική μου" : "—";
+
+    const hint = document.getElementById("shipHint");
+    if (t.shipError) {
+      hint.style.color = "#b00020";
+      hint.textContent = t.shipError;
+    } else {
+      hint.style.color = "#666";
+      hint.textContent = "Το κόστος αποστολής υπολογίζεται αυτόματα βάσει βάρους.";
+    }
   }
 
   function resetForm() {
@@ -420,7 +489,6 @@
     updateTotals();
   }
 
-  // ✅ envío Telegram robusto (muestra error real)
   async function sendTelegram(texto) {
     const res = await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
       method: "POST",
@@ -431,9 +499,7 @@
     let data;
     try { data = await res.json(); } catch { throw new Error("Respuesta inválida de Telegram"); }
 
-    if (!res.ok || !data.ok) {
-      throw new Error(data?.description || `HTTP ${res.status}`);
-    }
+    if (!res.ok || !data.ok) throw new Error(data?.description || `HTTP ${res.status}`);
     return true;
   }
 
@@ -442,42 +508,39 @@
   renderProductos();
   renderExtras();
 
+  // Solo permitir 1 envío seleccionado (mejor UX + cálculo claro)
+  document.getElementById("ship_boxnow").addEventListener("change", () => enforceSingleShipping("ship_boxnow"));
+  document.getElementById("ship_acs").addEventListener("change", () => enforceSingleShipping("ship_acs"));
+  document.getElementById("ship_metaforiki").addEventListener("change", () => enforceSingleShipping("ship_metaforiki"));
+
+  updateTotals();
+
   document.getElementById("btn").addEventListener("click", async () => {
     const afm = document.getElementById("afm").value.trim();
     const result = document.getElementById("result");
     result.innerHTML = "";
 
-    // AFM: seguimos validando 9 dígitos, solo quitamos el texto/nota visual
     if (!/^\d{9}$/.test(afm)) {
       result.innerHTML = `<div class="bad">Παρακαλώ γράψτε έγκυρο ΑΦΜ.</div>`;
       return;
     }
 
-    const shipping = getShippingSelected();
-    if (shipping.length === 0) {
-      result.innerHTML = `<div class="bad">Παρακαλώ επιλέξτε τουλάχιστον 1 τρόπο αποστολής.</div>`;
-      return;
-    }
+    const t = calcTotals();
 
-    const items = [];
-    let subtotal = 0;
-
-    for (const p of PRODUCTOS) {
-      const qty = getQty(p.id);
-      if (qty > 0) {
-        const line = qty * (Number(p.price)||0);
-        subtotal += line;
-        items.push({ name: p.name, qty, price: Number(p.price)||0, line });
-      }
-    }
-
-    if (items.length === 0) {
+    if (t.items.length === 0) {
       result.innerHTML = `<div class="bad">Παρακαλώ συμπληρώστε ποσότητα σε τουλάχιστον 1 προϊόν.</div>`;
       return;
     }
 
-    const vat = subtotal * VAT_RATE;
-    const total = subtotal + vat;
+    if (!t.shipMethod) {
+      result.innerHTML = `<div class="bad">Παρακαλώ επιλέξτε 1 τρόπο αποστολής.</div>`;
+      return;
+    }
+
+    if (t.shipError) {
+      result.innerHTML = `<div class="bad">${t.shipError}</div>`;
+      return;
+    }
 
     const extras = getExtrasSelected();
     const comment = document.getElementById("comment").value.trim();
@@ -486,22 +549,29 @@
     const epwnymia = reg?.epwnymia?.trim() ? reg.epwnymia : "ΑΦΜ no registrado en base de datos.";
     const onoma = reg?.onoma?.trim() ? reg.onoma : "—";
 
-    let texto = `📦 Νέα Παραγγελία\n`;
+    let texto = `📦 Νέα Παραγγελία (Refill)\n`;
     texto += `🏪 Κατάστημα: ${epwnymia}\n`;
     texto += `👤 Όνομα: ${onoma}\n`;
     texto += `🧾 ΑΦΜ: ${afm}\n\n`;
 
     texto += `🛍️ Προϊόντα:\n`;
-    for (const it of items) {
+    for (const it of t.items) {
       texto += `• ${it.name}: ${it.qty} x ${eur(it.price)}€ = ${eur(it.line)}€\n`;
     }
 
-    texto += `\n💶 Καθαρή αξία: ${eur(subtotal)}€\n`;
-    texto += `🧾 ΦΠΑ 24%: ${eur(vat)}€\n`;
-    texto += `✅ Σύνολο: ${eur(total)}€\n`;
+    texto += `\n⚖️ Συνολικό βάρος: ${eur(t.weight)} kg\n`;
 
-    texto += `\n🚚 Τρόποι Αποστολής:\n`;
-    for (const s of shipping) texto += `• ${s}\n`;
+    const shipLabel =
+      (t.shipMethod === "BOX NOW") ? "BOX NOW" :
+      (t.shipMethod === "ACS") ? "ACS" :
+      (t.shipMethod === "OWN") ? "Δική μου μεταφορική" : "—";
+
+    texto += `\n🚚 Αποστολή: ${shipLabel}\n`;
+    texto += `📦 Κόστος αποστολής (χωρίς ΦΠΑ): ${eur(t.shipCost)}€\n`;
+
+    texto += `\n💶 Καθαρή αξία: ${eur(t.subtotal)}€\n`;
+    texto += `🧾 ΦΠΑ 24%: ${eur(t.vat)}€\n`;
+    texto += `✅ Σύνολο: ${eur(t.total)}€\n`;
 
     if (extras.length) {
       texto += `\n🎁 Τα εξτραδακια μας:\n`;
@@ -512,15 +582,29 @@
       texto += `\n📝 Σχόλιο:\n${comment}\n`;
     }
 
+    // enviar
+    const btn = document.getElementById("btn");
+    btn.disabled = true;
+
     try {
       await sendTelegram(texto);
     } catch (err) {
+      btn.disabled = false;
       result.innerHTML = `<div class="bad">Telegram error: ${String(err.message || err)}</div>`;
       return;
     }
 
-    alert("Η παραγγελία στάλθηκε επιτυχώς στο Telegram!");
+    // ✅ Mensaje final centrado (sin alert)
+    result.innerHTML = `
+      <div class="ok">
+        <div><b>Λάβαμε την παραγγελία σου και θα επικοινωνήσουμε άμεσα. Ευχαριστούμε!</b></div>
+        <div>Η ομάδα της Bewoofed</div>
+      </div>
+    `;
+
+    // reset y volver a habilitar
     resetForm();
+    btn.disabled = false;
   });
 </script>
 </body>
