@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>BEWOOFED — Παραγγελία</title>
+  <title>BEWOOFED — Refill</title>
 
   <style>
     :root{
@@ -14,7 +14,7 @@
       --ok:#e9ffe9;
       --bad:#ffe9e9;
     }
-    body{font-family:system-ui,Arial;max-width:920px;margin:1.2rem auto;padding:1rem;padding-bottom:150px;background:#fff}
+    body{font-family:system-ui,Arial;max-width:920px;margin:1.2rem auto;padding:1rem;padding-bottom:170px;background:#fff}
     h2{margin:0 0 1rem 0;display:flex;align-items:center;gap:10px}
     .logo{height:46px;width:auto;border-radius:10px;border:1px solid #eee;background:#fafafa}
     .card{border:1px solid var(--border);border-radius:16px;padding:14px;background:var(--bg)}
@@ -23,6 +23,15 @@
     label{display:block;margin:10px 0 6px;font-weight:700}
     input[type="text"]{
       padding:10px;font-size:16px;border:1px solid #ccc;border-radius:12px;width:100%;box-sizing:border-box
+    }
+    textarea{
+      width:100%;
+      padding:10px;
+      font-size:15px;
+      border-radius:12px;
+      border:1px solid #ccc;
+      box-sizing:border-box;
+      resize:vertical;
     }
     .hint{color:var(--muted);font-size:13px;margin-top:6px}
 
@@ -72,17 +81,6 @@
     .ok{margin-top:12px;padding:12px;border-radius:12px;background:var(--ok)}
     .bad{margin-top:12px;padding:12px;border-radius:12px;background:var(--bad)}
 
-    /* textarea */
-    textarea{
-      width:100%;
-      padding:10px;
-      font-size:15px;
-      border-radius:12px;
-      border:1px solid #ccc;
-      box-sizing:border-box;
-      resize:vertical;
-    }
-
     /* barra fija con resumen */
     .totalbar{
       position:fixed;left:0;right:0;bottom:0;
@@ -115,7 +113,7 @@
     }
 
     @media (max-width:520px){
-      body{padding:12px;padding-bottom:160px}
+      body{padding:12px;padding-bottom:180px}
       .item{grid-template-columns: 56px 1fr auto}
       .pic{width:56px;height:56px}
       .stepper button{width:34px}
@@ -127,13 +125,14 @@
 <body>
   <h2>
     <img class="logo" id="logo" alt="BEWOOFED logo">
-    BEWOOFED — Παραγγελία
+    BEWOOFED — Refill
   </h2>
 
   <div class="card">
-    <label for="afm">ΑΦΜ (9 ψηφία)</label>
-    <input id="afm" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="π.χ. 155025800" />
-    <div class="hint">Γράψε το ΑΦΜ και συμπλήρωσε ποσότητες / επιλογές.</div>
+    <!-- (1) AFM: sin nota “9 dígitos” + placeholder 123456789 -->
+    <label for="afm">ΑΦΜ</label>
+    <input id="afm" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="π.χ. 123456789" />
+    <div class="hint">Συμπληρώστε ΑΦΜ και επιλέξτε ποσότητες.</div>
 
     <div class="sep"></div>
 
@@ -188,16 +187,21 @@
   </div>
 
 <script>
-  // ✅ Tu TOKEN y CHAT_ID (grupo)
+  // ✅ Pon aquí tu TOKEN y el chat_id del GRUPO
   const TOKEN = "7993916106:AAEN_n8R8qh2DIn2gUKZBH3CkNj1blIKArk";
-  const CHAT_ID = "1446479004"; // ⚠️ pon aquí el chat_id del GRUPO (ej: -100xxxxxxxxxx)
+  const CHAT_ID = "1446479004"; // ⚠️ Debe ser el del grupo (normalmente -100xxxxxxxxxx)
 
   const VAT_RATE = 0.24;
 
+  // fallback de formatos (incluye mayúsculas)
   const IMG_EXTS = ["png","jpg","jpeg","webp","JPG","JPEG","PNG","WEBP"];
+
   function setImgWithFallback(imgEl, basePathNoExt) {
     let i = 0;
-    const tryNext = () => { if (i >= IMG_EXTS.length) return; imgEl.src = `${basePathNoExt}.${IMG_EXTS[i++]}`; };
+    const tryNext = () => {
+      if (i >= IMG_EXTS.length) return;
+      imgEl.src = `${basePathNoExt}.${IMG_EXTS[i++]}`;
+    };
     imgEl.onerror = () => tryNext();
     tryNext();
   }
@@ -237,13 +241,11 @@
     { id:"p7", imgBase:"img/p7", name:"Θήκη για ρολά υφασμάτινη Figo Bewoofed x Wildbarks",  price: 5.50 }
   ];
 
+  // ✅ EXTRAS (3) Quitados: floor stand / table wipes / table bags
   const EXTRAS = [
     { id:"ex_stickers", imgBase:"img/ex_stickers", name:"Branded stickers" },
     { id:"ex_brochure", imgBase:"img/ex_brochure", name:"Brochure" },
     { id:"ex_poster_wipes", imgBase:"img/ex_poster_wipes", name:"Poster Don't forget your wipes" },
-    { id:"ex_floor_stand", imgBase:"img/ex_floor_stand", name:"Επιδαπέδιο Stant all products" },
-    { id:"ex_table_wipes", imgBase:"img/ex_table_wipes", name:"Επιτραπέζιο Stant μαντιλάκια" },
-    { id:"ex_table_bags", imgBase:"img/ex_table_bags", name:"Επιτραπέζιο Stant σακουλάκια" },
     { id:"ex_flag", imgBase:"img/p8", name:"Σημαία (Bandera) — Bewoofed" }
   ];
 
@@ -398,21 +400,27 @@
 
   function getExtrasSelected() {
     const arr = [];
-    for (const ex of EXTRAS) if (document.getElementById(ex.id).checked) arr.push(ex.name);
+    for (const ex of EXTRAS) {
+      if (document.getElementById(ex.id).checked) arr.push(ex.name);
+    }
     return arr;
   }
 
   function resetForm() {
     document.getElementById("afm").value = "";
     for (const p of PRODUCTOS) document.getElementById(p.id).value = "0";
+
     document.getElementById("ship_boxnow").checked = false;
     document.getElementById("ship_acs").checked = false;
     document.getElementById("ship_metaforiki").checked = false;
+
     for (const ex of EXTRAS) document.getElementById(ex.id).checked = false;
+
     document.getElementById("comment").value = "";
     updateTotals();
   }
 
+  // ✅ envío Telegram robusto (muestra error real)
   async function sendTelegram(texto) {
     const res = await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
       method: "POST",
@@ -422,7 +430,10 @@
 
     let data;
     try { data = await res.json(); } catch { throw new Error("Respuesta inválida de Telegram"); }
-    if (!res.ok || !data.ok) throw new Error(data?.description || `HTTP ${res.status}`);
+
+    if (!res.ok || !data.ok) {
+      throw new Error(data?.description || `HTTP ${res.status}`);
+    }
     return true;
   }
 
@@ -436,8 +447,9 @@
     const result = document.getElementById("result");
     result.innerHTML = "";
 
+    // AFM: seguimos validando 9 dígitos, solo quitamos el texto/nota visual
     if (!/^\d{9}$/.test(afm)) {
-      result.innerHTML = `<div class="bad">Παρακαλώ γράψτε έγκυρο ΑΦΜ (9 ψηφία).</div>`;
+      result.innerHTML = `<div class="bad">Παρακαλώ γράψτε έγκυρο ΑΦΜ.</div>`;
       return;
     }
 
@@ -453,9 +465,9 @@
     for (const p of PRODUCTOS) {
       const qty = getQty(p.id);
       if (qty > 0) {
-        const line = qty * p.price;
+        const line = qty * (Number(p.price)||0);
         subtotal += line;
-        items.push({ name: p.name, qty, price: p.price, line });
+        items.push({ name: p.name, qty, price: Number(p.price)||0, line });
       }
     }
 
